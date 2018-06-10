@@ -1,19 +1,56 @@
 import whois
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import argparse
+
 
 def load_urls4check(path):
     with open(path, 'r', encoding='UTF8') as file_handler:
-        print(file_handler.readlines())
+        for url in file_handler.read().splitlines():
+            yield (
+                url,
+                is_server_respond_with_200(url),
+                get_domain_expiration_date(url)
+            )
 
 
 def is_server_respond_with_200(url):
-    return requests.get(url)
+    try:
+        return requests.get(url).ok
+    except requests.exceptions.ConnectionError:
+        return
+
 
 def get_domain_expiration_date(domain_name):
-    w = whois.whois(domain_name)
-    return w.expiration_date.isoformat()
+    today_plus_month = datetime.today() + timedelta(days=+30)
+    expiration_date = whois.whois(domain_name).expiration_date
+
+    if isinstance(expiration_date, list):
+        expiration_date = max(
+            [date.replace(tzinfo=None) for date in expiration_date]
+        )
+        return expiration_date > today_plus_month
+
+    elif isinstance(expiration_date, datetime):
+        return expiration_date.replace(tzinfo=None) > today_plus_month
+
+
+def print_url_statuses(url_statuses):
+    print('Domains statuses:')
+    row_template = '{:<60} | {:^20} | {:^20}'
+    horizontal_line = '-' * 100
+    print(row_template.format('Url', 'Is URL ok', 'Domain status'))
+    print(horizontal_line)
+
+    for url, url_status, domain_status in url_statuses:
+        print(
+            row_template.format(
+                url,
+                'yes' if url_status else 'no',
+                'error' if domain_status is None
+                else 'OK' if domain_status else 'expired'
+            )
+        )
 
 
 def parse_arguments():
@@ -28,11 +65,7 @@ def parse_arguments():
 
 
 if __name__ == '__main__':
-    url = 'https://aaaservice.jet.su'
     try:
-        load_urls4check(parse_arguments().filepath)
+        print_url_statuses(load_urls4check(parse_arguments().filepath))
     except (FileNotFoundError, UnicodeDecodeError) as read_urls_error:
         exit("Can't read file with urls:\n{}".format(read_urls_error))
-    # print(get_domain_expiration_date(url))
-    # print(is_server_respond_with_200(url))
-#
