@@ -7,11 +7,7 @@ import argparse
 def load_urls4check(path):
     with open(path, 'r', encoding='UTF8') as file_handler:
         for url in file_handler.read().splitlines():
-            yield (
-                url,
-                is_server_respond_with_200(url),
-                get_domain_expiration_date(url)
-            )
+            yield url
 
 
 def is_server_respond_with_200(url):
@@ -22,18 +18,27 @@ def is_server_respond_with_200(url):
 
 
 def get_domain_expiration_date(domain_name):
-    today_plus_month = datetime.today() + timedelta(days=+30)
     expiration_date = whois.whois(domain_name).expiration_date
 
     if isinstance(expiration_date, list):
-        expiration_date = max(
-            [date.replace(tzinfo=None) for date in expiration_date]
-        )
-        return expiration_date > today_plus_month
+        return max([date.replace(tzinfo=None) for date in expiration_date])
 
     elif isinstance(expiration_date, datetime):
-        return expiration_date.replace(tzinfo=None) > today_plus_month
+        return expiration_date.replace(tzinfo=None)
 
+
+def is_domain_expire_soon(expiration_date, alarm_ndays=30):
+    alarm_date = datetime.today() + timedelta(days=alarm_ndays)
+    return expiration_date > alarm_date
+
+
+def load_urls4check(urls_list):
+    for url in urls_list:
+        yield (
+            url,
+            is_server_respond_with_200(url),
+            get_domain_expiration_date(url)
+        )
 
 def print_url_statuses(url_statuses):
     print('Domains statuses:')
@@ -65,7 +70,8 @@ def parse_arguments():
 
 
 if __name__ == '__main__':
+    urls_list = load_urls4check(parse_arguments().filepath)
     try:
-        print_url_statuses(load_urls4check(parse_arguments().filepath))
+        print_url_statuses(combine_url_statuses(urls_list))
     except (FileNotFoundError, UnicodeDecodeError) as read_urls_error:
         exit("Can't read file with urls:\n{}".format(read_urls_error))
