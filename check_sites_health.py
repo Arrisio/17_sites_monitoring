@@ -32,7 +32,7 @@ def is_domain_expire_soon(expiration_date, alarm_ndays=30):
     return expiration_date > alarm_date
 
 
-def load_urls4check(urls_list):
+def combine_url_statuses(urls_list):
     for url in urls_list:
         yield (
             url,
