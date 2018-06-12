@@ -10,7 +10,7 @@ def load_urls4check(path):
             yield url
 
 
-def is_server_respond_with_200(url):
+def is_server_respond_with_ok(url):
     try:
         return requests.get(url).ok
     except requests.exceptions.ConnectionError:
@@ -28,16 +28,17 @@ def get_domain_expiration_date(domain_name):
 
 
 def is_domain_expire_soon(expiration_date, alarm_ndays=30):
-    alarm_date = datetime.today() + timedelta(days=alarm_ndays)
-    return expiration_date > alarm_date
+    if expiration_date:
+        alarm_date = datetime.today() + timedelta(days=alarm_ndays)
+        return expiration_date > alarm_date
 
 
 def combine_url_statuses(urls_list):
     for url in urls_list:
         yield (
             url,
-            is_server_respond_with_200(url),
-            get_domain_expiration_date(url)
+            is_server_respond_with_ok(url),
+            is_domain_expire_soon(get_domain_expiration_date(url))
         )
 
 def print_url_statuses(url_statuses):
